@@ -1,0 +1,49 @@
+--- stock before
+ product_id | stock_qty 
+------------+-----------
+          1 |        68
+          2 |        37
+(2 rows)
+
+--- A) successful order: COMMIT
+BEGIN
+INSERT 0 1
+UPDATE 1
+UPDATE 1
+COMMIT
+ product_id | stock_qty 
+------------+-----------
+          1 |        66
+(1 row)
+
+--- B) failing order: stock would go negative -> CHECK violation -> ROLLBACK
+BEGIN
+INSERT 0 1
+ERROR:  new row for relation "products" violates check constraint "products_stock_qty_check"
+DETAIL:  Failing row contains (2, 5, Product 2, Description of product 2, 139194.82, -99963, t, 2025-08-10 22:15:04.712113+00).
+ROLLBACK
+orders row inserted in failed tx is gone (count of orders with total 100 and customer 1 created now):
+ count 
+-------
+     0
+(1 row)
+
+ product_id | stock_qty 
+------------+-----------
+          2 |        37
+(1 row)
+
+--- C) SAVEPOINT: payment fails, order kept as PENDING
+BEGIN
+INSERT 0 1
+SAVEPOINT
+ERROR:  new row for relation "payments" violates check constraint "payments_amount_check"
+DETAIL:  Failing row contains (137578, 150003, CARD, -5.00, FAILED, 2026-11-04 22:25:03.728963+00).
+ROLLBACK
+INSERT 0 1
+COMMIT
+ order_id | status  | payment_status 
+----------+---------+----------------
+   150003 | PENDING | FAILED
+(1 row)
+
