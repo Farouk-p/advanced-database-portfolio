@@ -10,3 +10,7 @@ services:
     volumes:
       - ./portfolio-1-database-design/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./portfolio-1-database-design/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+  mongo:
+    image: mongo:7
+    container_name: naijamart-mongo
+    ports: ["27017:27017"]
