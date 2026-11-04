@@ -1,0 +1,315 @@
+===== Q1 =====
+SELECT order_id, order_date, status, total_amount
+FROM orders WHERE customer_id = 777 ORDER BY order_date DESC
+
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=35.44..35.46 rows=8 width=32) (actual time=0.167..0.168 rows=8 loops=1)
+   Sort Key: order_date DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=14 read=3
+   ->  Bitmap Heap Scan on orders  (cost=4.48..35.32 rows=8 width=32) (actual time=0.068..0.141 rows=8 loops=1)
+         Recheck Cond: (customer_id = 777)
+         Heap Blocks: exact=8
+         Buffers: shared hit=11 read=3
+         ->  Bitmap Index Scan on idx_orders_customer_date  (cost=0.00..4.48 rows=8 width=0) (actual time=0.045..0.045 rows=8 loops=1)
+               Index Cond: (customer_id = 777)
+               Buffers: shared hit=3 read=3
+ Planning:
+   Buffers: shared hit=144 read=3
+ Planning Time: 0.592 ms
+ Execution Time: 0.237 ms
+(15 rows)
+
+
+===== Q2 =====
+SELECT date_trunc('month', order_date) AS month, SUM(total_amount) AS revenue, COUNT(*) AS orders
+FROM orders
+WHERE status = 'DELIVERED' AND order_date >= now() - interval '6 months'
+GROUP BY 1 ORDER BY 1
+
+                                                                       QUERY PLAN                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=5025.05..5496.53 rows=18859 width=48) (actual time=12.321..14.174 rows=7 loops=1)
+   Group Key: (date_trunc('month'::text, order_date))
+   Buffers: shared hit=1529 read=54
+   ->  Sort  (cost=5025.05..5072.20 rows=18859 width=16) (actual time=11.986..12.652 rows=18866 loops=1)
+         Sort Key: (date_trunc('month'::text, order_date))
+         Sort Method: quicksort  Memory: 1650kB
+         Buffers: shared hit=1529 read=54
+         ->  Bitmap Heap Scan on orders  (cost=358.45..3685.78 rows=18859 width=16) (actual time=1.718..9.367 rows=18866 loops=1)
+               Recheck Cond: ((order_date >= (now() - '6 mons'::interval)) AND ((status)::text = 'DELIVERED'::text))
+               Heap Blocks: exact=1526
+               Buffers: shared hit=1526 read=54
+               ->  Bitmap Index Scan on idx_orders_delivered_date  (cost=0.00..353.74 rows=18859 width=0) (actual time=1.448..1.448 rows=18866 loops=1)
+                     Index Cond: (order_date >= (now() - '6 mons'::interval))
+                     Buffers: shared read=54
+ Planning:
+   Buffers: shared hit=167
+ Planning Time: 0.444 ms
+ Execution Time: 14.265 ms
+(18 rows)
+
+
+===== Q3 =====
+SELECT p.product_id, p.name, SUM(oi.quantity) AS units_sold
+FROM order_items oi JOIN products p ON p.product_id = oi.product_id
+GROUP BY p.product_id, p.name ORDER BY units_sold DESC LIMIT 10
+
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=7228.85..7228.87 rows=10 width=28) (actual time=96.255..96.335 rows=10 loops=1)
+   Buffers: shared hit=2346
+   ->  Sort  (cost=7228.85..7241.35 rows=5000 width=28) (actual time=96.254..96.333 rows=10 loops=1)
+         Sort Key: (sum(oi.quantity)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=2346
+         ->  Finalize HashAggregate  (cost=7070.80..7120.80 rows=5000 width=28) (actual time=94.969..95.706 rows=5000 loops=1)
+               Group Key: p.product_id
+               Batches: 1  Memory Usage: 721kB
+               Buffers: shared hit=2343
+               ->  Gather  (cost=6495.80..7045.80 rows=5000 width=28) (actual time=92.446..93.490 rows=10000 loops=1)
+                     Workers Planned: 1
+                     Workers Launched: 1
+                     Buffers: shared hit=2343
+                     ->  Partial HashAggregate  (cost=5495.80..5545.80 rows=5000 width=28) (actual time=91.394..91.810 rows=5000 loops=2)
+                           Group Key: p.product_id
+                           Batches: 1  Memory Usage: 721kB
+                           Buffers: shared hit=2343
+                           Worker 0:  Batches: 1  Memory Usage: 721kB
+                           ->  Hash Join  (cost=179.50..4613.56 rows=176449 width=24) (actual time=1.077..57.586 rows=149982 loops=2)
+                                 Hash Cond: (oi.product_id = p.product_id)
+                                 Buffers: shared hit=2343
+                                 ->  Parallel Seq Scan on order_items oi  (cost=0.00..3970.49 rows=176449 width=12) (actual time=0.006..18.023 rows=149982 loops=2)
+                                       Buffers: shared hit=2206
+                                 ->  Hash  (cost=117.00..117.00 rows=5000 width=20) (actual time=1.055..1.055 rows=5000 loops=2)
+                                       Buckets: 8192  Batches: 1  Memory Usage: 322kB
+                                       Buffers: shared hit=134
+                                       ->  Seq Scan on products p  (cost=0.00..117.00 rows=5000 width=20) (actual time=0.004..0.466 rows=5000 loops=2)
+                                             Buffers: shared hit=134
+ Planning:
+   Buffers: shared hit=163 read=7
+ Planning Time: 0.488 ms
+ Execution Time: 96.518 ms
+(33 rows)
+
+
+===== Q4 =====
+SELECT c.name AS category, a.state, SUM(oi.quantity*oi.unit_price) AS revenue
+FROM order_items oi
+JOIN orders o ON o.order_id = oi.order_id
+JOIN products p ON p.product_id = oi.product_id
+JOIN categories c ON c.category_id = p.category_id
+JOIN addresses a ON a.address_id = o.address_id
+WHERE o.status <> 'CANCELLED'
+GROUP BY c.name, a.state ORDER BY revenue DESC LIMIT 20
+
+                                                                                        QUERY PLAN                                                                                         
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=14756.21..14756.26 rows=20 width=47) (actual time=155.254..157.478 rows=20 loops=1)
+   Buffers: shared hit=5659
+   ->  Sort  (cost=14756.21..14756.36 rows=60 width=47) (actual time=155.253..157.475 rows=20 loops=1)
+         Sort Key: (sum(((oi.quantity)::numeric * oi.unit_price))) DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=5659
+         ->  Finalize GroupAggregate  (cost=14746.36..14754.61 rows=60 width=47) (actual time=155.197..157.454 rows=36 loops=1)
+               Group Key: c.name, a.state
+               Buffers: shared hit=5656
+               ->  Gather Merge  (cost=14746.36..14753.26 rows=60 width=47) (actual time=155.187..157.422 rows=72 loops=1)
+                     Workers Planned: 1
+                     Workers Launched: 1
+                     Buffers: shared hit=5656
+                     ->  Sort  (cost=13746.35..13746.50 rows=60 width=47) (actual time=153.370..153.375 rows=36 loops=2)
+                           Sort Key: c.name, a.state
+                           Sort Method: quicksort  Memory: 28kB
+                           Buffers: shared hit=5656
+                           Worker 0:  Sort Method: quicksort  Memory: 28kB
+                           ->  Partial HashAggregate  (cost=13743.83..13744.58 rows=60 width=47) (actual time=153.322..153.335 rows=36 loops=2)
+                                 Group Key: c.name, a.state
+                                 Batches: 1  Memory Usage: 32kB
+                                 Buffers: shared hit=5648
+                                 Worker 0:  Batches: 1  Memory Usage: 32kB
+                                 ->  Hash Join  (cost=5834.59..11722.24 rows=161727 width=27) (actual time=22.960..114.302 rows=137384 loops=2)
+                                       Hash Cond: (o.address_id = a.address_id)
+                                       Buffers: shared hit=5648
+                                       ->  Hash Join  (cost=5197.59..10660.62 rows=161727 width=30) (actual time=19.243..91.280 rows=137384 loops=2)
+                                             Hash Cond: (p.category_id = c.category_id)
+                                             Buffers: shared hit=5259
+                                             ->  Hash Join  (cost=5196.37..10054.93 rows=161727 width=24) (actual time=19.220..76.822 rows=137384 loops=2)
+                                                   Hash Cond: (oi.product_id = p.product_id)
+                                                   Buffers: shared hit=5243
+                                                   ->  Parallel Hash Join  (cost=5016.87..9450.54 rows=161727 width=28) (actual time=18.256..58.051 rows=137384 loops=2)
+                                                         Hash Cond: (oi.order_id = o.order_id)
+                                                         Buffers: shared hit=5109
+                                                         ->  Parallel Seq Scan on order_items oi  (cost=0.00..3970.49 rows=176449 width=28) (actual time=0.036..8.605 rows=149982 loops=2)
+                                                               Buffers: shared hit=2206
+                                                         ->  Parallel Hash  (cost=4005.94..4005.94 rows=80874 width=16) (actual time=17.775..17.775 rows=68702 loops=2)
+                                                               Buckets: 262144  Batches: 1  Memory Usage: 8512kB
+                                                               Buffers: shared hit=2903
+                                                               ->  Parallel Seq Scan on orders o  (cost=0.00..4005.94 rows=80874 width=16) (actual time=0.439..8.697 rows=68702 loops=2)
+                                                                     Filter: ((status)::text <> 'CANCELLED'::text)
+                                                                     Rows Removed by Filter: 6298
+                                                                     Buffers: shared hit=2903
+                                                   ->  Hash  (cost=117.00..117.00 rows=5000 width=12) (actual time=0.900..0.900 rows=5000 loops=2)
+                                                         Buckets: 8192  Batches: 1  Memory Usage: 279kB
+                                                         Buffers: shared hit=134
+                                                         ->  Seq Scan on products p  (cost=0.00..117.00 rows=5000 width=12) (actual time=0.005..0.385 rows=5000 loops=2)
+                                                               Buffers: shared hit=134
+                                             ->  Hash  (cost=1.10..1.10 rows=10 width=14) (actual time=0.007..0.007 rows=10 loops=2)
+                                                   Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                   Buffers: shared hit=2
+                                                   ->  Seq Scan on categories c  (cost=0.00..1.10 rows=10 width=14) (actual time=0.004..0.005 rows=10 loops=2)
+                                                         Buffers: shared hit=2
+                                       ->  Hash  (cost=387.00..387.00 rows=20000 width=13) (actual time=3.601..3.601 rows=20000 loops=2)
+                                             Buckets: 32768  Batches: 1  Memory Usage: 1194kB
+                                             Buffers: shared hit=374
+                                             ->  Seq Scan on addresses a  (cost=0.00..387.00 rows=20000 width=13) (actual time=0.008..1.560 rows=20000 loops=2)
+                                                   Buffers: shared hit=374
+ Planning:
+   Buffers: shared hit=537
+ Planning Time: 1.852 ms
+ Execution Time: 157.633 ms
+(63 rows)
+
+
+===== Q5 =====
+WITH spend AS (
+  SELECT cu.customer_id, a.state, SUM(o.total_amount) AS total_spent
+  FROM customers cu JOIN orders o ON o.customer_id = cu.customer_id
+  JOIN addresses a ON a.address_id = o.address_id
+  WHERE o.status <> 'CANCELLED' GROUP BY cu.customer_id, a.state)
+SELECT * FROM (SELECT *, RANK() OVER (PARTITION BY state ORDER BY total_spent DESC) rnk FROM spend) r
+WHERE rnk <= 3
+
+                                                                        QUERY PLAN                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+ WindowAgg  (cost=33977.66..36377.66 rows=120000 width=53) (actual time=135.995..137.718 rows=18 loops=1)
+   Run Condition: (rank() OVER (?) <= 3)
+   Buffers: shared hit=3334, temp read=11 written=64
+   ->  Sort  (cost=33977.66..34277.66 rows=120000 width=45) (actual time=135.979..136.673 rows=19983 loops=1)
+         Sort Key: spend.state, spend.total_spent DESC
+         Sort Method: quicksort  Memory: 1705kB
+         Buffers: shared hit=3334, temp read=11 written=64
+         ->  Subquery Scan on spend  (cost=17050.40..20161.55 rows=120000 width=45) (actual time=112.435..119.462 rows=19983 loops=1)
+               Buffers: shared hit=3328, temp read=11 written=64
+               ->  HashAggregate  (cost=17050.40..20161.55 rows=120000 width=45) (actual time=112.434..118.045 rows=19983 loops=1)
+                     Group Key: cu.customer_id, a.state
+                     Planned Partitions: 8  Batches: 9  Memory Usage: 8273kB  Disk Usage: 456kB
+                     Buffers: shared hit=3328, temp read=11 written=64
+                     ->  Hash Join  (cost=1325.00..6824.95 rows=137485 width=21) (actual time=8.502..70.572 rows=137403 loops=1)
+                           Hash Cond: (o.address_id = a.address_id)
+                           Buffers: shared hit=3328
+                           ->  Hash Join  (cost=688.00..5826.98 rows=137485 width=24) (actual time=4.652..42.355 rows=137403 loops=1)
+                                 Hash Cond: (o.customer_id = cu.customer_id)
+                                 Buffers: shared hit=3141
+                                 ->  Seq Scan on orders o  (cost=0.00..4778.00 rows=137485 width=24) (actual time=1.051..15.271 rows=137403 loops=1)
+                                       Filter: ((status)::text <> 'CANCELLED'::text)
+                                       Rows Removed by Filter: 12597
+                                       Buffers: shared hit=2903
+                                 ->  Hash  (cost=438.00..438.00 rows=20000 width=8) (actual time=3.526..3.527 rows=20000 loops=1)
+                                       Buckets: 32768  Batches: 1  Memory Usage: 1038kB
+                                       Buffers: shared hit=238
+                                       ->  Seq Scan on customers cu  (cost=0.00..438.00 rows=20000 width=8) (actual time=0.004..1.548 rows=20000 loops=1)
+                                             Buffers: shared hit=238
+                           ->  Hash  (cost=387.00..387.00 rows=20000 width=13) (actual time=3.797..3.797 rows=20000 loops=1)
+                                 Buckets: 32768  Batches: 1  Memory Usage: 1194kB
+                                 Buffers: shared hit=187
+                                 ->  Seq Scan on addresses a  (cost=0.00..387.00 rows=20000 width=13) (actual time=0.003..1.584 rows=20000 loops=1)
+                                       Buffers: shared hit=187
+ Planning:
+   Buffers: shared hit=272 read=3
+ Planning Time: 0.682 ms
+ Execution Time: 138.313 ms
+(37 rows)
+
+
+===== Q6 =====
+SELECT product_id, ROUND(AVG(rating),2) avg_rating, COUNT(*) n
+FROM reviews GROUP BY product_id HAVING COUNT(*) >= 5 ORDER BY avg_rating DESC LIMIT 10
+
+                                                          QUERY PLAN                                                          
+------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1188.72..1188.75 rows=10 width=48) (actual time=9.730..9.731 rows=10 loops=1)
+   Buffers: shared hit=377
+   ->  Sort  (cost=1188.72..1192.88 rows=1662 width=48) (actual time=9.729..9.729 rows=10 loops=1)
+         Sort Key: (round(avg(rating), 2)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=377
+         ->  HashAggregate  (cost=1073.88..1152.81 rows=1662 width=48) (actual time=8.066..9.172 rows=4482 loops=1)
+               Group Key: product_id
+               Filter: (count(*) >= 5)
+               Batches: 1  Memory Usage: 977kB
+               Rows Removed by Filter: 515
+               Buffers: shared hit=374
+               ->  Seq Scan on reviews  (cost=0.00..773.93 rows=39993 width=10) (actual time=0.004..2.709 rows=39993 loops=1)
+                     Buffers: shared hit=374
+ Planning:
+   Buffers: shared hit=115 read=1
+ Planning Time: 0.577 ms
+ Execution Time: 9.960 ms
+(18 rows)
+
+
+===== Q7 =====
+SELECT o.order_id, o.order_date FROM orders o
+WHERE o.status = 'PENDING' AND o.order_date < now() - interval '30 days'
+AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.order_id = o.order_id)
+
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=4373.72..7547.62 rows=989 width=16) (actual time=23.470..32.747 rows=11918 loops=1)
+   Workers Planned: 1
+   Workers Launched: 1
+   Buffers: shared hit=2895 read=34
+   ->  Parallel Hash Anti Join  (cost=3373.72..6448.72 rows=582 width=16) (actual time=21.734..28.523 rows=5959 loops=2)
+         Hash Cond: (o.order_id = p.order_id)
+         Buffers: shared hit=2895 read=34
+         ->  Parallel Bitmap Heap Scan on orders o  (cost=232.84..3276.33 rows=7025 width=16) (actual time=1.166..5.849 rows=5959 loops=2)
+               Recheck Cond: ((order_date < (now() - '30 days'::interval)) AND ((status)::text = 'PENDING'::text))
+               Heap Blocks: exact=760
+               Buffers: shared hit=1527 read=34
+               ->  Bitmap Index Scan on idx_orders_pending_date  (cost=0.00..229.85 rows=11942 width=0) (actual time=1.001..1.001 rows=11918 loops=1)
+                     Index Cond: (order_date < (now() - '30 days'::interval))
+                     Buffers: shared read=34
+         ->  Parallel Hash  (cost=2129.28..2129.28 rows=80928 width=8) (actual time=19.843..19.844 rows=68788 loops=2)
+               Buckets: 262144  Batches: 1  Memory Usage: 7488kB
+               Buffers: shared hit=1320
+               ->  Parallel Seq Scan on payments p  (cost=0.00..2129.28 rows=80928 width=8) (actual time=0.013..6.371 rows=68788 loops=2)
+                     Buffers: shared hit=1320
+ Planning:
+   Buffers: shared hit=277 read=6
+ Planning Time: 0.870 ms
+ Execution Time: 33.233 ms
+(23 rows)
+
+
+===== Q8 =====
+SELECT p.product_id, p.name, p.stock_qty
+FROM products p
+WHERE p.stock_qty < 20 AND p.product_id IN (
+   SELECT oi.product_id FROM order_items oi JOIN orders o ON o.order_id = oi.order_id
+   WHERE o.order_date >= now() - interval '90 days')
+
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Semi Join  (cost=0.99..4044.88 rows=200 width=24) (actual time=0.477..23.215 rows=206 loops=1)
+   Buffers: shared hit=9919 read=541 dirtied=101
+   ->  Index Scan using idx_products_lowstock on products p  (cost=0.14..17.14 rows=200 width=24) (actual time=0.018..0.269 rows=206 loops=1)
+         Buffers: shared hit=65 read=1
+   ->  Nested Loop  (cost=0.84..78.98 rows=7 width=8) (actual time=0.111..0.111 rows=1 loops=206)
+         Buffers: shared hit=9854 read=540 dirtied=101
+         ->  Index Scan using idx_order_items_product on order_items oi  (cost=0.42..49.29 rows=60 width=16) (actual time=0.024..0.059 rows=9 loops=206)
+               Index Cond: (product_id = p.product_id)
+               Buffers: shared hit=2216 read=202
+         ->  Index Scan using orders_pkey on orders o  (cost=0.42..0.49 rows=1 width=8) (actual time=0.006..0.006 rows=0 loops=1809)
+               Index Cond: (order_id = oi.order_id)
+               Filter: (order_date >= (now() - '90 days'::interval))
+               Rows Removed by Filter: 1
+               Buffers: shared hit=7595 read=338 dirtied=87
+ Planning:
+   Buffers: shared hit=334
+ Planning Time: 0.831 ms
+ Execution Time: 23.258 ms
+(18 rows)
+
+
