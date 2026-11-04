@@ -1,0 +1,11 @@
+      t      | count  
+-------------+--------
+ products    |   5000
+ customers   |  20000
+ reviews     |  39993
+ deliveries  | 100043
+ order_items | 299963
+ orders      | 150000
+ payments    | 137577
+(7 rows)
+

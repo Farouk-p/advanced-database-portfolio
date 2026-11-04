@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: naijamart-pg
+    environment:
+      POSTGRES_USER: naija
+      POSTGRES_PASSWORD: naija_pw
+      POSTGRES_DB: naijamart
+    ports: ["5432:5432"]
+    volumes:
+      - ./portfolio-1-database-design/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./portfolio-1-database-design/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
