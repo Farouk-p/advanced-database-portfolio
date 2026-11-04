@@ -17,7 +17,7 @@ Output: `evidence/mongo_queries_output.txt` (3,000 products, 5,000 customers, 30
 ## Implementation evidence (`02_queries.js`)
 Q1 attribute search across variable fields · Q2 single-read product page · Q3 order history without joins · Q4/Q5/Q6 aggregation pipelines (`$match`, `$unwind`, `$group`, `$sort`) · TTL index on carts · atomic single-document update.
 
-**Index effect (`explain('executionStats')`) on order history for one customer:** COLLSCAN examined 30,000 documents to return 6; after compound index `{customer_id:1, order_date:-1}` an IXSCAN examined only 6 documents (see output file; timings are small at this data size, documents examined shows the difference).
+**Index effect (`explain('executionStats')`) on order history for one customer:** COLLSCAN examined 30,000 documents to return 7; after compound index `{customer_id:1, order_date:-1}` an IXSCAN examined only 7 documents (see output file; timings are small at this data size, documents examined shows the difference).
 
 ## Suitability: when NoSQL fits NaijaMart – and when it doesn't
 - **Good fit:** product catalogue with varied attributes, order documents read as a whole, session/cart data, high read volume, easy horizontal scaling (sharding).

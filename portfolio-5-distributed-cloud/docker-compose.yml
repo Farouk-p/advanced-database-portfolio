@@ -1,0 +1,32 @@
+# Portfolio 5: PostgreSQL primary + streaming replica, and a 3-node MongoDB replica set
+services:
+  pg-primary:
+    image: postgres:16
+    container_name: nm-pg-primary
+    environment: { POSTGRES_USER: naija, POSTGRES_PASSWORD: naija_pw, POSTGRES_DB: naijamart }
+    command: ["postgres","-c","wal_level=replica","-c","max_wal_senders=5","-c","hot_standby=on"]
+    ports: ["5442:5432"]
+    volumes:
+      - ./init-primary.sh:/docker-entrypoint-initdb.d/00_init.sh:ro
+      - ../portfolio-1-database-design/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+  pg-replica:
+    image: postgres:16
+    container_name: nm-pg-replica
+    depends_on: [pg-primary]
+    environment: { PGPASSWORD: repl_pw }
+    entrypoint: ["bash","/replica-entrypoint.sh"]
+    ports: ["5443:5432"]
+    volumes: ["./replica-entrypoint.sh:/replica-entrypoint.sh:ro"]
+  mongo1:
+    image: mongo:7
+    container_name: nm-mongo1
+    command: ["mongod","--replSet","rs0","--bind_ip_all"]
+    ports: ["27118:27017"]
+  mongo2:
+    image: mongo:7
+    container_name: nm-mongo2
+    command: ["mongod","--replSet","rs0","--bind_ip_all"]
+  mongo3:
+    image: mongo:7
+    container_name: nm-mongo3
+    command: ["mongod","--replSet","rs0","--bind_ip_all"]
