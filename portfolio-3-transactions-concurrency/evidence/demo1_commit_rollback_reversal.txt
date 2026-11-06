@@ -1,0 +1,121 @@
+ demo_reset 
+------------
+ 
+(1 row)
+
+
+=== Starting balances
+ account_id |  balance  
+------------+-----------
+       6501 | 500000.00
+       6502 | 300000.00
+
+
+=== A) COMMIT: Amaka sends N100,000 to Tunde. Both sides change together.
+BEGIN
+UPDATE 1
+UPDATE 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+COMMIT
+ account_id |  balance  
+------------+-----------
+       6501 | 400000.00
+       6502 | 400000.00
+
+
+=== B) ROLLBACK: Tunde tries to send N900,000 but only has N400,000.
+    The debit breaks the "balance >= 0" rule, so the whole transaction is undone.
+BEGIN
+ERROR:  new row for relation "accounts" violates check constraint "accounts_balance_check"
+DETAIL:  Failing row contains (6502, 9000000002, 5002, SAVINGS, -500000.00, ACTIVE, 2026-11-06 10:17:49.800933+00).
+ROLLBACK
+Balances after the rollback (unchanged, and Amaka was not credited):
+ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ account_id |  balance  
+------------+-----------
+       6501 | 400000.00
+       6502 | 400000.00
+
+
+=== C) REVERSING A FAILED TRANSFER: the money leaves Amaka, but the receiving account is frozen.
+    Nothing is deleted. The bank writes a compensating REVERSAL entry, so the audit trail stays complete.
+UPDATE 1
+BEGIN
+UPDATE 1
+INSERT 0 1
+INSERT 0 1
+Step 2: try to credit the receiver. Only ACTIVE accounts can be credited. How many rows changed?
+UPDATE 0
+Zero rows. The credit failed, so give the money back to the sender:
+UPDATE 1
+INSERT 0 1
+UPDATE 1
+COMMIT
+Amaka is back to N400,000 and the transfer is marked REVERSED:
+ account_id |  balance  
+------------+-----------
+       6501 | 400000.00
+
+ reference |  status  |    failure_reason    
+-----------+----------+----------------------
+ DEMO-C    | REVERSED | CREDIT_NOT_CONFIRMED
+
+Amaka's statement shows the full story:
+   tx_type    | direction |  amount   | balance_after 
+--------------+-----------+-----------+---------------
+ DEPOSIT      | CREDIT    | 500000.00 |     500000.00
+ TRANSFER_OUT | DEBIT     | 100000.00 |     400000.00
+ TRANSFER_OUT | DEBIT     |  50000.00 |     350000.00
+ REVERSAL     | CREDIT    |  50000.00 |     400000.00
+
+
+=== D) The transfer_funds() function does all of this safely in one call.
+ demo_reset 
+------------
+ 
+
+1) normal transfer:
+ transfer_funds 
+----------------
+ COMPLETED
+
+2) more than the balance:
+       transfer_funds       
+----------------------------
+ FAILED: INSUFFICIENT_FUNDS
+
+3) same request sent twice (a retry):
+                  transfer_funds                   
+---------------------------------------------------
+ DUPLICATE: FN-1 was already processed (COMPLETED)
+
+UPDATE 1
+4) receiver is frozen:
+       transfer_funds       
+----------------------------
+ FAILED: ACCOUNT_NOT_ACTIVE
+
+ reference |  status   |   failure_reason   
+-----------+-----------+--------------------
+ FN-1      | COMPLETED | 
+ FN-2      | FAILED    | INSUFFICIENT_FUNDS
+ FN-4      | FAILED    | ACCOUNT_NOT_ACTIVE
+
+Balances (only transfer FN-1 moved money):
+ account_id |  balance  
+------------+-----------
+       6501 | 400000.00
+       6502 | 400000.00
+
+
+=== E) AUDIT: after all of that, does every account in the bank still equal its log? (0 = yes)
+ demo_reset 
+------------
+ 
+
+ accounts_that_do_not_match 
+----------------------------
+                          0
+

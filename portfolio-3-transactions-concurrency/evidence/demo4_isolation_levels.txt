@@ -1,0 +1,61 @@
+
+=========== (a) Non-repeatable read, isolation = READ COMMITTED ===========
+ first reading 
+---------------
+     500000.00
+(1 row)
+
+                    note                    
+--------------------------------------------
+ a N200,000 deposit has just been committed
+(1 row)
+
+ second reading 
+----------------
+      700000.00
+(1 row)
+
+
+=========== (a) Non-repeatable read, isolation = REPEATABLE READ ===========
+ first reading 
+---------------
+     500000.00
+(1 row)
+
+                    note                    
+--------------------------------------------
+ a N200,000 deposit has just been committed
+(1 row)
+
+ second reading 
+----------------
+      500000.00
+(1 row)
+
+
+=========== (b) Two ATMs, isolation = REPEATABLE READ ===========
+ATM-A: total across both accounts is 120000.00
+ATM-B: total across both accounts is 120000.00
+ATM-A: withdrawal of 50,000 allowed (rule still holds, as far as ATM-A can see)
+ATM-B: withdrawal of 50,000 allowed (rule still holds, as far as ATM-B can see)
+Zainab's total across both accounts afterwards (the rule says at least 50,000):
+ total_balance 
+---------------
+      20000.00
+(1 row)
+
+
+=========== (b) Two ATMs, isolation = SERIALIZABLE ===========
+ATM-A: total across both accounts is 120000.00
+ATM-B: total across both accounts is 120000.00
+ATM-A: withdrawal of 50,000 allowed (rule still holds, as far as ATM-A can see)
+ERROR:  could not serialize access due to read/write dependencies among transactions
+DETAIL:  Reason code: Canceled on identification as a pivot, during write.
+HINT:  The transaction might succeed if retried.
+ATM-B: CANCELLED by the database (serialization error). Nothing was paid out; the ATM must retry.
+Zainab's total across both accounts afterwards (the rule says at least 50,000):
+ total_balance 
+---------------
+      70000.00
+(1 row)
+

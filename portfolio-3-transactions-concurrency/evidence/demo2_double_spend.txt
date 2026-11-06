@@ -1,0 +1,43 @@
+
+=========== 1) No protection (READ COMMITTED): BOTH approved = N160,000 paid out of a N100,000 account, yet the balance only dropped by N80,000 ===========
+ATM-A: sees a balance of 100000.00
+ATM-B: sees a balance of 100000.00
+ATM-A: withdrawal of 80,000 APPROVED
+ATM-B: withdrawal of 80,000 APPROVED
+ final_balance 
+---------------
+      20000.00
+(1 row)
+
+
+=========== 2) Row lock (SELECT ... FOR UPDATE): the second ATM waits, then sees N20,000 and is refused ===========
+ATM-A: sees a balance of 100000.00
+ATM-A: withdrawal of 80,000 APPROVED
+ATM-B: sees a balance of 20000.00
+ATM-B: withdrawal REFUSED, not enough money
+ final_balance 
+---------------
+      20000.00
+(1 row)
+
+
+=========== 3) Stricter isolation (REPEATABLE READ): the database stops the second ATM with an error ===========
+ATM-A: sees a balance of 100000.00
+ATM-B: sees a balance of 100000.00
+ATM-A: withdrawal of 80,000 APPROVED
+ERROR:  could not serialize access due to concurrent update
+ATM-B: CANCELLED by the database (serialization error). Nothing was paid out; the ATM must retry.
+ final_balance 
+---------------
+      20000.00
+(1 row)
+
+
+=========== 4) One atomic UPDATE with the check built in ===========
+ATM-A: rows updated = 1 (1 = approved, 0 = refused)
+ATM-B: rows updated = 0 (1 = approved, 0 = refused)
+ final_balance 
+---------------
+      20000.00
+(1 row)
+

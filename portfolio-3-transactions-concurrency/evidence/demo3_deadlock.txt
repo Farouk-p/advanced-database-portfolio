@@ -1,0 +1,34 @@
+=========== 1) Naive code: each transfer locks its own sender first, then the receiver ===========
+ERROR:  deadlock detected
+DETAIL:  Process 1017 waits for ShareLock on transaction 1029; blocked by process 1024.
+Process 1024 waits for ShareLock on transaction 1028; blocked by process 1017.
+HINT:  See server log for query details.
+CONTEXT:  while updating tuple (0,14) in relation "accounts"
+T2 (Tunde -> Amaka): finished
+T1 (Amaka -> Tunde): CANCELLED by PostgreSQL (deadlock victim). Its changes were rolled back.
+One transaction was cancelled by PostgreSQL. Only the survivor's change was applied:
+ account_id |  balance  
+------------+-----------
+       6501 | 510000.00
+       6502 | 290000.00
+(2 rows)
+
+
+=========== 2) transfer_funds(): always locks the lower account number first ===========
+            result            
+------------------------------
+ T1 Amaka -> Tunde: COMPLETED
+(1 row)
+
+            result            
+------------------------------
+ T2 Tunde -> Amaka: COMPLETED
+(1 row)
+
+Both completed, no deadlock. Amaka and Tunde each sent N10,000, so the balances end where they started:
+ account_id |  balance  
+------------+-----------
+       6501 | 500000.00
+       6502 | 300000.00
+(2 rows)
+
