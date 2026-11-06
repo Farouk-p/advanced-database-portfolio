@@ -28,11 +28,11 @@ docker exec farpoint-mongo mongosh --quiet /tmp/02_queries.js
 
 **Collection `transactions`** (246,776 documents): one document per balance change.
 ```json
-{ "_id": 8841, "account_number": "3000011111",
-  "customer": { "id": 1111, "name": "Ifeanyi Eze" },
+{ "_id": 41, "account_number": "3000016311",
+  "customer": { "id": 1631, "name": "Ifeanyi Eze" },
   "type": "WITHDRAWAL", "direction": "DEBIT",
-  "amount": "36500.00", "balance_after": "2752468.00", "at": "2026-08-03T23:48:44Z",
-  "details": { "channel": "ATM" } }
+  "amount": "47500.00", "balance_after": "3766551.00", "at": "2024-02-23T23:36:56Z",
+  "details": { "channel": "POS" } }
 ```
 - `details` changes with the type: `{channel}` for deposits and withdrawals, `{transfer_ref, transfer_status, counterparty, failure_reason}` for transfers.
 - The customer name is **copied in** (embedded) so a statement needs no join.

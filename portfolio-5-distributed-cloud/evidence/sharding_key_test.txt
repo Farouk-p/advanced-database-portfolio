@@ -1,0 +1,41 @@
+--- Option 1: hash of the account number (4 shards)
+ shard | log_rows | pct  
+-------+----------+------
+     0 |    61916 | 25.1
+     1 |    63051 | 25.5
+     2 |    61256 | 24.8
+     3 |    60557 | 24.5
+(4 rows)
+
+--- Option 2: range on transaction date (one shard per quarter, so the newest quarter takes new writes)
+  quarter   | log_rows 
+------------+----------
+ 2024-01-01 |      517
+ 2024-04-01 |     2287
+ 2024-07-01 |     4468
+ 2024-10-01 |     7357
+ 2025-01-01 |    10749
+ 2025-04-01 |    16543
+ 2025-07-01 |    24089
+ 2025-10-01 |    35340
+ 2026-01-01 |    42191
+ 2026-04-01 |    42813
+ 2026-07-01 |    43240
+ 2026-10-01 |    17186
+(12 rows)
+
+--- Option 2 in practice: where did the last 30 days of writes land?
+  quarter   | rows_written_last_30_days 
+------------+---------------------------
+ 2026-10-01 |                     14107
+(1 row)
+
+--- A customer's accounts under option 1 (does one customer stay on one shard if we shard by customer_id?)
+ shard | accounts 
+-------+----------
+     0 |     1667
+     1 |     1556
+     2 |     1671
+     3 |     1610
+(4 rows)
+

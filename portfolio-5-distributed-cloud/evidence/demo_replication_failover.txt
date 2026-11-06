@@ -1,0 +1,118 @@
+################ PART A: PostgreSQL replication (primary on :5442, replica on :5443)
+
+--- A1. The primary sees the replica and is streaming to it
+   state   | sync_state 
+-----------+------------
+ streaming | async
+(1 row)
+
+--- A2. The replica holds the same data (customers / transaction log rows)
+ customers | log_rows 
+-----------+----------
+      5000 |   246776
+(1 row)
+
+--- A3. The replica is a read-only standby
+ is_standby 
+------------
+ t
+(1 row)
+
+--- A4. A statement query can run on the replica (so reporting does not slow down the primary)
+   tx_type    | direction |  amount  | balance_after 
+--------------+-----------+----------+---------------
+ TRANSFER_OUT | DEBIT     | 32500.00 |    3304827.00
+ TRANSFER_IN  | CREDIT    | 46500.00 |    3337327.00
+ TRANSFER_IN  | CREDIT    | 21000.00 |    3290827.00
+(3 rows)
+
+--- A5. A write on the replica is refused
+ERROR:  cannot execute INSERT in a read-only transaction
+--- A6. A deposit on the primary appears on the replica a moment later (asynchronous replication)
+ deposit_id | account_id |  amount  
+------------+------------+----------
+      56501 |          1 | 12345.00
+(1 row)
+
+--- A7. How far behind is the replica?
+  replay_delay   
+-----------------
+ 00:00:01.355087
+(1 row)
+
+
+--- A8. SYNCHRONOUS replication: a commit now waits until the replica confirms it (no data loss)
+ sync_state 
+------------
+ sync
+(1 row)
+
+Commit with the replica UP (timed):
+  took 169 ms
+Now the replica goes DOWN. A commit on the primary now has to wait for it:
+  -> exit status 124 (124 = still waiting after 6 seconds). The bank chose to wait rather than risk losing a confirmed deposit.
+Switch back to asynchronous so the primary can accept writes alone again:
+               result                
+-------------------------------------
+ write accepted by the primary alone
+(1 row)
+
+Bring the replica back: it catches up on what it missed.
+ missed_deposits_now_on_replica 
+--------------------------------
+                              3
+(1 row)
+
+
+--- A9. FAILOVER: the primary is lost, the replica is promoted to take over
+ promoted 
+----------
+ t
+(1 row)
+
+ is_standby_now 
+----------------
+ f
+(1 row)
+
+                 result                  
+-----------------------------------------
+ the promoted replica now accepts writes
+(1 row)
+
+ deposits_survived 
+-------------------
+                 5
+(1 row)
+
+(The old primary must be rebuilt as a standby before it rejoins, otherwise two servers would both accept writes.)
+
+################ PART B: MongoDB replica set rs0 (3 nodes)
+--- B1. Members
+   mongo1:27017 PRIMARY
+   mongo2:27017 SECONDARY
+   mongo3:27017 SECONDARY
+Primary is mongo1. Write a transaction with majority acknowledgement (2 of 3 nodes must have it):
+true
+--- B2. STOP the primary (mongo1)
+Members as seen by mongo2 (a new primary is elected without human help):
+   mongo1:27017 (not reachable/healthy)
+   mongo2:27017 PRIMARY
+   mongo3:27017 SECONDARY
+--- B3. The confirmed transaction is still there, and writes still work
+{
+  _id: 1,
+  note: 'before failover'
+}
+new write acknowledged: true
+--- B4. Only ONE node left would stop writes: stop a second node too
+write NOT confirmed: NotWritablePrimary
+   mongo1:27017 (not reachable/healthy)
+   mongo2:27017 SECONDARY
+   mongo3:27017 (not reachable/healthy)
+  (with 1 of 3 nodes alive there is no majority: the node steps down and refuses to confirm writes. Consistency over availability.)
+--- B5. Restart the stopped nodes: they rejoin as secondaries and catch up
+   mongo1:27017 SECONDARY
+   mongo2:27017 PRIMARY
+   mongo3:27017 SECONDARY
+documents visible on the rejoined node: 2
