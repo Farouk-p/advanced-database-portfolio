@@ -1,0 +1,187 @@
+
+=== Q1 Statement for one account (newest 5)
+[
+  {
+    type: 'DEPOSIT',
+    direction: 'CREDIT',
+    amount: Decimal128('52574.00'),
+    balance_after: Decimal128('2796542.00'),
+    at: ISODate('2026-10-20T20:44:11.000Z')
+  },
+  {
+    type: 'TRANSFER_IN',
+    direction: 'CREDIT',
+    amount: Decimal128('34000.00'),
+    balance_after: Decimal128('2743968.00'),
+    at: ISODate('2026-10-14T05:14:31.000Z')
+  },
+  {
+    type: 'TRANSFER_OUT',
+    direction: 'DEBIT',
+    amount: Decimal128('42500.00'),
+    balance_after: Decimal128('2709968.00'),
+    at: ISODate('2026-08-11T23:39:49.000Z')
+  },
+  {
+    type: 'WITHDRAWAL',
+    direction: 'DEBIT',
+    amount: Decimal128('36500.00'),
+    balance_after: Decimal128('2752468.00'),
+    at: ISODate('2026-08-03T23:48:44.000Z')
+  },
+  {
+    type: 'TRANSFER_IN',
+    direction: 'CREDIT',
+    amount: Decimal128('35500.00'),
+    balance_after: Decimal128('2788968.00'),
+    at: ISODate('2026-07-25T10:35:11.000Z')
+  }
+]
+
+=== Q2 Monthly statement from the bucket (one document)
+{
+  account_number: '3000011111',
+  month: '2026-10',
+  customer: 'Ifeanyi Eze',
+  transactions: 2,
+  closing_balance: Decimal128('2796542.00'),
+  first_entry: {
+    at: ISODate('2026-10-14T05:14:31.000Z'),
+    type: 'TRANSFER_IN',
+    direction: 'CREDIT',
+    amount: Decimal128('34000.00'),
+    balance_after: Decimal128('2743968.00')
+  }
+}
+
+=== Q3 Count of withdrawals by channel (details differ by transaction type)
+[
+  {
+    _id: 'POS',
+    n: 19862,
+    total: Decimal128('499791500.00')
+  },
+  {
+    _id: 'BRANCH',
+    n: 10179,
+    total: Decimal128('257272500.00')
+  },
+  {
+    _id: 'ATM',
+    n: 9959,
+    total: Decimal128('252203500.00')
+  }
+]
+
+=== Q4 Reversals by reason
+[
+  {
+    _id: 'CREDIT_NOT_CONFIRMED',
+    n: 3280,
+    value: Decimal128('82951000.00')
+  }
+]
+
+=== Q5 Daily volume by type, last 5 days of data
+[
+  {
+    _id: {
+      day: '2026-11-06',
+      type: 'DEPOSIT'
+    },
+    n: 31,
+    total: Decimal128('3151690.00')
+  },
+  {
+    _id: {
+      day: '2026-11-06',
+      type: 'REVERSAL'
+    },
+    n: 2,
+    total: Decimal128('16000.00')
+  },
+  {
+    _id: {
+      day: '2026-11-06',
+      type: 'TRANSFER_IN'
+    },
+    n: 65,
+    total: Decimal128('1706500.00')
+  },
+  {
+    _id: {
+      day: '2026-11-06',
+      type: 'TRANSFER_OUT'
+    },
+    n: 67,
+    total: Decimal128('1722500.00')
+  },
+  {
+    _id: {
+      day: '2026-11-06',
+      type: 'WITHDRAWAL'
+    },
+    n: 27,
+    total: Decimal128('668500.00')
+  }
+]
+
+=== Q6 Top 5 senders
+[
+  {
+    _id: {
+      account: '3000042761',
+      name: 'Funmilayo Okonkwo'
+    },
+    sent: Decimal128('735000.00')
+  },
+  {
+    _id: {
+      account: '3000048861',
+      name: 'Ngozi Ojo'
+    },
+    sent: Decimal128('701000.00')
+  },
+  {
+    _id: {
+      account: '3000026551',
+      name: 'Aisha Umar'
+    },
+    sent: Decimal128('654500.00')
+  },
+  {
+    _id: {
+      account: '3000013661',
+      name: 'Ngozi Ojo'
+    },
+    sent: Decimal128('652500.00')
+  },
+  {
+    _id: {
+      account: '3000015841',
+      name: 'Chiamaka Danjuma'
+    },
+    sent: Decimal128('649500.00')
+  }
+]
+
+=== Q1 explain BEFORE index (reads the whole collection)
+{
+  docs_examined: 246776,
+  docs_returned: 25,
+  millis: 60
+}
+
+=== Q1 explain AFTER index {account_number, at}
+{
+  docs_examined: 25,
+  docs_returned: 25,
+  millis: 8
+}
+
+=== Cross-check: collection totals
+{
+  transactions: 246776,
+  credits: Decimal128('29790816639.00'),
+  debits: Decimal128('2911520000.00')
+}
