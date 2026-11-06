@@ -1,16 +1,20 @@
+# Starts the two databases used in Portfolios 1-4.
+#   PostgreSQL -> relational core (customers, accounts, transfers, ...)
+#   MongoDB    -> document store for transaction history (Portfolio 4)
 services:
   postgres:
     image: postgres:16
-    container_name: naijamart-pg
+    container_name: farpoint-pg
     environment:
-      POSTGRES_USER: naija
-      POSTGRES_PASSWORD: naija_pw
-      POSTGRES_DB: naijamart
+      POSTGRES_USER: kobo
+      POSTGRES_PASSWORD: kobo_pw
+      POSTGRES_DB: farpoint
     ports: ["5432:5432"]
     volumes:
+      # Files in this folder run automatically, in alphabetical order, on first start.
       - ./portfolio-1-database-design/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./portfolio-1-database-design/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
   mongo:
     image: mongo:7
-    container_name: naijamart-mongo
+    container_name: farpoint-mongo
     ports: ["27017:27017"]

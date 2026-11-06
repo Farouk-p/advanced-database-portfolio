@@ -1,87 +1,79 @@
--- NaijaMart: e-commerce relational schema (PostgreSQL 16)
+-- Farpoint: relational schema (PostgreSQL 16)
 -- Portfolio 1: Database Design and Modelling
+--
+-- Six tables, taken straight from the case study description:
+--   customers, accounts, deposits, withdrawals, transfers, transaction_logs
+--
+-- Money is always NUMERIC(15,2) (never FLOAT, which cannot store naira/kobo exactly).
 
+-- Who the bank's customers are.
 CREATE TABLE customers (
-    customer_id   BIGSERIAL PRIMARY KEY,
-    full_name     VARCHAR(100) NOT NULL,
-    email         VARCHAR(150) NOT NULL UNIQUE,
-    phone         VARCHAR(20),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    customer_id  BIGSERIAL PRIMARY KEY,
+    full_name    VARCHAR(100) NOT NULL,
+    email        VARCHAR(150) NOT NULL UNIQUE,
+    phone        VARCHAR(20)  NOT NULL,
+    bvn          CHAR(11)     NOT NULL UNIQUE CHECK (bvn ~ '^[0-9]{11}$'),  -- bank verification number
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-CREATE TABLE addresses (
-    address_id    BIGSERIAL PRIMARY KEY,
-    customer_id   BIGINT NOT NULL REFERENCES customers(customer_id) ON DELETE CASCADE,
-    street        VARCHAR(200) NOT NULL,
-    city          VARCHAR(80)  NOT NULL,
-    state         VARCHAR(80)  NOT NULL,
-    is_default    BOOLEAN NOT NULL DEFAULT FALSE
+-- A customer can hold more than one account (e.g. savings and current).
+CREATE TABLE accounts (
+    account_id      BIGSERIAL PRIMARY KEY,
+    account_number  CHAR(10)  NOT NULL UNIQUE CHECK (account_number ~ '^[0-9]{10}$'),  -- NUBAN style
+    customer_id     BIGINT    NOT NULL REFERENCES customers(customer_id),
+    account_type    VARCHAR(10) NOT NULL CHECK (account_type IN ('SAVINGS','CURRENT')),
+    balance         NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (balance >= 0),  -- no overdrafts
+    status          VARCHAR(10) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','FROZEN','CLOSED')),
+    opened_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE categories (
-    category_id        SERIAL PRIMARY KEY,
-    name               VARCHAR(80) NOT NULL UNIQUE,
-    parent_category_id INT REFERENCES categories(category_id)
+-- Money paid in.
+CREATE TABLE deposits (
+    deposit_id  BIGSERIAL PRIMARY KEY,
+    account_id  BIGINT NOT NULL REFERENCES accounts(account_id),
+    amount      NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    channel     VARCHAR(10) NOT NULL CHECK (channel IN ('BRANCH','POS','MOBILE')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE products (
-    product_id    BIGSERIAL PRIMARY KEY,
-    category_id   INT NOT NULL REFERENCES categories(category_id),
-    name          VARCHAR(150) NOT NULL,
-    description   TEXT,
-    price         NUMERIC(12,2) NOT NULL CHECK (price >= 0),
-    stock_qty     INT NOT NULL DEFAULT 0 CHECK (stock_qty >= 0),
-    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+-- Money taken out.
+CREATE TABLE withdrawals (
+    withdrawal_id  BIGSERIAL PRIMARY KEY,
+    account_id     BIGINT NOT NULL REFERENCES accounts(account_id),
+    amount         NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    channel        VARCHAR(10) NOT NULL CHECK (channel IN ('ATM','POS','BRANCH')),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE orders (
-    order_id      BIGSERIAL PRIMARY KEY,
-    customer_id   BIGINT NOT NULL REFERENCES customers(customer_id),
-    address_id    BIGINT NOT NULL REFERENCES addresses(address_id),
-    status        VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING','PAID','SHIPPED','DELIVERED','CANCELLED')),
-    total_amount  NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
-    order_date    TIMESTAMPTZ NOT NULL DEFAULT now()
+-- Money moved from one account to another.
+-- "reference" is unique so the same payment request cannot be processed twice.
+CREATE TABLE transfers (
+    transfer_id      BIGSERIAL PRIMARY KEY,
+    reference        VARCHAR(30) NOT NULL UNIQUE,
+    from_account_id  BIGINT NOT NULL REFERENCES accounts(account_id),
+    to_account_id    BIGINT NOT NULL REFERENCES accounts(account_id),
+    amount           NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    status           VARCHAR(10) NOT NULL DEFAULT 'PENDING'
+                     CHECK (status IN ('PENDING','COMPLETED','FAILED','REVERSED')),
+    failure_reason   VARCHAR(40),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (from_account_id <> to_account_id)      -- you cannot send money to yourself
 );
 
-CREATE TABLE order_items (
-    order_id      BIGINT NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
-    product_id    BIGINT NOT NULL REFERENCES products(product_id),
-    quantity      INT NOT NULL CHECK (quantity > 0),
-    unit_price    NUMERIC(12,2) NOT NULL CHECK (unit_price >= 0),
-    PRIMARY KEY (order_id, product_id)
-);
-
-CREATE TABLE payments (
-    payment_id    BIGSERIAL PRIMARY KEY,
-    order_id      BIGINT NOT NULL REFERENCES orders(order_id),
-    method        VARCHAR(20) NOT NULL CHECK (method IN ('CARD','TRANSFER','USSD','WALLET','COD')),
-    amount        NUMERIC(12,2) NOT NULL CHECK (amount > 0),
-    status        VARCHAR(20) NOT NULL CHECK (status IN ('SUCCESS','FAILED','REFUNDED')),
-    paid_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE couriers (
-    courier_id    SERIAL PRIMARY KEY,
-    name          VARCHAR(80) NOT NULL UNIQUE
-);
-
-CREATE TABLE deliveries (
-    delivery_id   BIGSERIAL PRIMARY KEY,
-    order_id      BIGINT NOT NULL UNIQUE REFERENCES orders(order_id),
-    courier_id    INT NOT NULL REFERENCES couriers(courier_id),
-    status        VARCHAR(20) NOT NULL CHECK (status IN ('ASSIGNED','IN_TRANSIT','DELIVERED','FAILED')),
-    shipped_at    TIMESTAMPTZ,
-    delivered_at  TIMESTAMPTZ
-);
-
-CREATE TABLE reviews (
-    review_id     BIGSERIAL PRIMARY KEY,
-    product_id    BIGINT NOT NULL REFERENCES products(product_id),
-    customer_id   BIGINT NOT NULL REFERENCES customers(customer_id),
-    rating        SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment       TEXT,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (product_id, customer_id)
+-- The audit trail: one row every time an account balance changes.
+-- Each row points to exactly one source (a deposit, a withdrawal or a transfer)
+-- and stores the balance after the change, so any balance can be re-checked later.
+CREATE TABLE transaction_logs (
+    log_id         BIGSERIAL PRIMARY KEY,
+    account_id     BIGINT NOT NULL REFERENCES accounts(account_id),
+    tx_type        VARCHAR(12) NOT NULL
+                   CHECK (tx_type IN ('DEPOSIT','WITHDRAWAL','TRANSFER_OUT','TRANSFER_IN','REVERSAL')),
+    direction      VARCHAR(6) NOT NULL CHECK (direction IN ('CREDIT','DEBIT')),
+    amount         NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    balance_after  NUMERIC(15,2) NOT NULL CHECK (balance_after >= 0),
+    deposit_id     BIGINT REFERENCES deposits(deposit_id),
+    withdrawal_id  BIGINT REFERENCES withdrawals(withdrawal_id),
+    transfer_id    BIGINT REFERENCES transfers(transfer_id),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (num_nonnulls(deposit_id, withdrawal_id, transfer_id) = 1)
 );

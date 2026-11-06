@@ -1,15 +1,11 @@
-          List of relations
- Schema |    Name     | Type  | Owner 
---------+-------------+-------+-------
- public | addresses   | table | naija
- public | categories  | table | naija
- public | couriers    | table | naija
- public | customers   | table | naija
- public | deliveries  | table | naija
- public | order_items | table | naija
- public | orders      | table | naija
- public | payments    | table | naija
- public | products    | table | naija
- public | reviews     | table | naija
-(10 rows)
+             List of relations
+ Schema |       Name       | Type  | Owner 
+--------+------------------+-------+-------
+ public | accounts         | table | kobo
+ public | customers        | table | kobo
+ public | deposits         | table | kobo
+ public | transaction_logs | table | kobo
+ public | transfers        | table | kobo
+ public | withdrawals      | table | kobo
+(6 rows)
 

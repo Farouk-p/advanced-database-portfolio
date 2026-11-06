@@ -1,11 +1,10 @@
-      t      | count  
--------------+--------
- products    |   5000
- customers   |  20000
- reviews     |  39993
- deliveries  | 100043
- order_items | 299963
- orders      | 150000
- payments    | 137577
-(7 rows)
+        t         | count  
+------------------+--------
+ customers        |   5000
+ accounts         |   6500
+ withdrawals      |  40000
+ deposits         |  56500
+ transfers        |  80000
+ transaction_logs | 246776
+(6 rows)
 

@@ -1,47 +1,65 @@
+# Farpoint ER diagram
+
+GitHub draws the diagram below automatically (it is written in Mermaid).
+
 ```mermaid
 erDiagram
-    CUSTOMERS ||--o{ ADDRESSES : has
-    CUSTOMERS ||--o{ ORDERS : places
-    ADDRESSES ||--o{ ORDERS : ships_to
-    CATEGORIES ||--o{ CATEGORIES : parent_of
-    CATEGORIES ||--o{ PRODUCTS : classifies
-    ORDERS ||--|{ ORDER_ITEMS : contains
-    PRODUCTS ||--o{ ORDER_ITEMS : appears_in
-    ORDERS ||--o{ PAYMENTS : paid_by
-    ORDERS ||--o| DELIVERIES : fulfilled_by
-    COURIERS ||--o{ DELIVERIES : handles
-    PRODUCTS ||--o{ REVIEWS : receives
-    CUSTOMERS ||--o{ REVIEWS : writes
+    CUSTOMERS ||--|{ ACCOUNTS : "owns"
+    ACCOUNTS  ||--o{ DEPOSITS : "receives"
+    ACCOUNTS  ||--o{ WITHDRAWALS : "pays out"
+    ACCOUNTS  ||--o{ TRANSFERS : "sends (from)"
+    ACCOUNTS  ||--o{ TRANSFERS : "receives (to)"
+    ACCOUNTS  ||--o{ TRANSACTION_LOGS : "audit trail"
+    DEPOSITS    |o--o| TRANSACTION_LOGS : "logged as"
+    WITHDRAWALS |o--o| TRANSACTION_LOGS : "logged as"
+    TRANSFERS   |o--o{ TRANSACTION_LOGS : "logged as"
 
-    CUSTOMERS { bigint customer_id PK
-                varchar email UK
-                varchar full_name }
-    ADDRESSES { bigint address_id PK
-                bigint customer_id FK }
-    CATEGORIES { int category_id PK
-                 int parent_category_id FK }
-    PRODUCTS { bigint product_id PK
-               int category_id FK
-               numeric price
-               int stock_qty }
-    ORDERS { bigint order_id PK
-             bigint customer_id FK
-             bigint address_id FK
-             varchar status
-             numeric total_amount }
-    ORDER_ITEMS { bigint order_id PK,FK
-                  bigint product_id PK,FK
-                  int quantity
-                  numeric unit_price }
-    PAYMENTS { bigint payment_id PK
-               bigint order_id FK
-               varchar method }
-    COURIERS { int courier_id PK }
-    DELIVERIES { bigint delivery_id PK
-                 bigint order_id FK,UK
-                 int courier_id FK }
-    REVIEWS { bigint review_id PK
-              bigint product_id FK
-              bigint customer_id FK
-              smallint rating }
+    CUSTOMERS {
+        bigint customer_id PK
+        varchar full_name
+        varchar email UK
+        varchar phone
+        char bvn UK
+    }
+    ACCOUNTS {
+        bigint account_id PK
+        char account_number UK
+        bigint customer_id FK
+        varchar account_type
+        numeric balance
+        varchar status
+    }
+    DEPOSITS {
+        bigint deposit_id PK
+        bigint account_id FK
+        numeric amount
+        varchar channel
+    }
+    WITHDRAWALS {
+        bigint withdrawal_id PK
+        bigint account_id FK
+        numeric amount
+        varchar channel
+    }
+    TRANSFERS {
+        bigint transfer_id PK
+        varchar reference UK
+        bigint from_account_id FK
+        bigint to_account_id FK
+        numeric amount
+        varchar status
+    }
+    TRANSACTION_LOGS {
+        bigint log_id PK
+        bigint account_id FK
+        varchar tx_type
+        varchar direction
+        numeric amount
+        numeric balance_after
+        bigint deposit_id FK
+        bigint withdrawal_id FK
+        bigint transfer_id FK
+    }
 ```
+
+**How to read it:** one customer owns one or more accounts. Every deposit, withdrawal and transfer touches an account, and each balance change also leaves one row in `transaction_logs`. A transfer has two accounts (sender and receiver), which is why `accounts` links to `transfers` twice.
