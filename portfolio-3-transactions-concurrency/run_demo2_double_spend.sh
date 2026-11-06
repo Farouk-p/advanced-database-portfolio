@@ -2,7 +2,7 @@
 # Demo 2: the double-spend problem.
 # Amaka's account (6501) holds N100,000. Two ATMs each try to pay out N80,000 at the same moment.
 # The correct result: ONE withdrawal is approved, the other refused, and N20,000 is left.
-PSQL="docker exec -i farpoint-pg psql -U kobo -d farpoint -q"
+PSQL="docker exec -i farpoint-pg psql -U farpoint -d farpoint -q"
 reset()  { echo "SELECT demo_reset(100000, 300000, 60000, 60000);" | $PSQL > /dev/null; }
 result() { echo "SELECT balance AS final_balance FROM accounts WHERE account_id = 6501;" | $PSQL; }
 

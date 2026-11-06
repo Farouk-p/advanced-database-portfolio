@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Demo 3: deadlock. Amaka (6501) sends money to Tunde (6502) at the same moment Tunde sends money to Amaka.
-PSQL="docker exec -i farpoint-pg psql -U kobo -d farpoint -q"
+PSQL="docker exec -i farpoint-pg psql -U farpoint -d farpoint -q"
 reset() { echo "SELECT demo_reset(500000, 300000, 60000, 60000);" | $PSQL > /dev/null; }
 {
 echo "=========== 1) Naive code: each transfer locks its own sender first, then the receiver ==========="

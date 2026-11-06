@@ -36,7 +36,7 @@ Every folder has its own README with the same four parts: the goal, what I did, 
 You need Docker Desktop.
 ```bash
 docker compose up -d      # PostgreSQL (schema and test data load automatically, about a minute) and MongoDB
-docker exec -it farpoint-pg psql -U kobo -d farpoint -c '\dt'
+docker exec -it farpoint-pg psql -U farpoint -d farpoint -c '\dt'
 ```
 Then follow the README in each portfolio folder. Portfolio 5 has its own `docker-compose.yml`.
 

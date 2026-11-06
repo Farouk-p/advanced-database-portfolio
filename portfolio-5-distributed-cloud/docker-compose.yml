@@ -3,8 +3,8 @@
 services:
   pg-primary:
     image: postgres:16
-    container_name: kp-pg-primary
-    environment: { POSTGRES_USER: kobo, POSTGRES_PASSWORD: kobo_pw, POSTGRES_DB: farpoint }
+    container_name: fp-pg-primary
+    environment: { POSTGRES_USER: farpoint, POSTGRES_PASSWORD: farpoint_pw, POSTGRES_DB: farpoint }
     command: ["postgres", "-c", "wal_level=replica", "-c", "max_wal_senders=5", "-c", "hot_standby=on"]
     ports: ["5442:5432"]
     volumes:
@@ -13,7 +13,7 @@ services:
       - ../portfolio-1-database-design/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
   pg-replica:
     image: postgres:16
-    container_name: kp-pg-replica
+    container_name: fp-pg-replica
     depends_on: [pg-primary]
     environment: { PGPASSWORD: repl_pw }
     entrypoint: ["bash", "/replica-entrypoint.sh"]
@@ -21,14 +21,14 @@ services:
     volumes: ["./replica-entrypoint.sh:/replica-entrypoint.sh:ro"]
   mongo1:
     image: mongo:7
-    container_name: kp-mongo1
+    container_name: fp-mongo1
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports: ["27118:27017"]
   mongo2:
     image: mongo:7
-    container_name: kp-mongo2
+    container_name: fp-mongo2
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
   mongo3:
     image: mongo:7
-    container_name: kp-mongo3
+    container_name: fp-mongo3
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Demo 4: isolation levels. (a) an auditor reads a balance twice while a deposit lands in between.
 #                           (b) two ATMs each check a "keep at least N50,000 across both accounts" rule.
-PSQL="docker exec -i farpoint-pg psql -U kobo -d farpoint -q"
+PSQL="docker exec -i farpoint-pg psql -U farpoint -d farpoint -q"
 reset() { echo "SELECT demo_reset(500000, 300000, 60000, 60000);" | $PSQL > /dev/null; }
 
 auditor() { $PSQL <<SQL

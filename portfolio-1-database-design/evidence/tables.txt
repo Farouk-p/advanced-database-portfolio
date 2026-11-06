@@ -1,11 +1,11 @@
              List of relations
  Schema |       Name       | Type  | Owner 
 --------+------------------+-------+-------
- public | accounts         | table | kobo
- public | customers        | table | kobo
- public | deposits         | table | kobo
- public | transaction_logs | table | kobo
- public | transfers        | table | kobo
- public | withdrawals      | table | kobo
+ public | accounts         | table | farpoint
+ public | customers        | table | farpoint
+ public | deposits         | table | farpoint
+ public | transaction_logs | table | farpoint
+ public | transfers        | table | farpoint
+ public | withdrawals      | table | farpoint
 (6 rows)
 

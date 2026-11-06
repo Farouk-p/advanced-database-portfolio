@@ -1,6 +1,6 @@
 -- Sharding design test on the real data: if Farpoint had 4 shards, how evenly would each shard key spread the work?
 -- Run against any copy of the database:
---   docker exec -i farpoint-pg psql -U kobo -d farpoint < sharding_key_test.sql
+--   docker exec -i farpoint-pg psql -U farpoint -d farpoint < sharding_key_test.sql
 \echo '--- Option 1: hash of the account number (4 shards)'
 SELECT abs(hashtext(a.account_number)) % 4 AS shard, count(*) AS log_rows,
        round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS pct

@@ -54,7 +54,7 @@ Both are copies of data that could be derived. They are safe only if every balan
 ## How to run it
 ```bash
 docker compose up -d       # from the repository root; the schema and data load automatically
-docker exec -it farpoint-pg psql -U kobo -d farpoint -c '\dt'
+docker exec -it farpoint-pg psql -U farpoint -d farpoint -c '\dt'
 ```
 
 ## What happened

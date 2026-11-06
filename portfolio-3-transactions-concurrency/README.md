@@ -13,7 +13,7 @@ Everything runs against the Farpoint PostgreSQL database. I created four demo ac
 | `run_demo3_deadlock.sh` | Two opposite transfers freezing each other, and the fix | `evidence/demo3_deadlock.txt` |
 | `run_demo4_isolation.sh` | What each isolation level lets through | `evidence/demo4_isolation_levels.txt` |
 
-To run them: `docker compose up -d` from the repository root, load `01_setup.sql` (`docker exec -i farpoint-pg psql -U kobo -d farpoint < 01_setup.sql`), then run any script.
+To run them: `docker compose up -d` from the repository root, load `01_setup.sql` (`docker exec -i farpoint-pg psql -U farpoint -d farpoint < 01_setup.sql`), then run any script.
 
 ## Demo 1: commit, rollback and reversal
 - **Commit (A):** Amaka sends N100,000 to Tunde. The debit, the credit, the transfer record and both log rows all succeed together, and balances go from 500,000/300,000 to 400,000/400,000.

@@ -2,7 +2,7 @@
 # Exports every transaction log row from PostgreSQL as one JSON document per line.
 # Each document carries the account number, customer name and, depending on the type of transaction,
 # different extra details (channel for cash movements, counterparty for transfers).
-docker exec -i farpoint-pg psql -U kobo -d farpoint -At <<'SQL' > data/transactions.jsonl
+docker exec -i farpoint-pg psql -U farpoint -d farpoint -At <<'SQL' > data/transactions.jsonl
 SELECT json_build_object(
   'log_id', l.log_id,
   'account_number', a.account_number,
