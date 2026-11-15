@@ -2,6 +2,7 @@
 
 **Student:** Popoola Farouk  
 **Student ID:** 301930841  
+**GitHub:** https://github.com/Farouk-p/advanced-database-portfolio  
 **Case study:** Farpoint, a made-up Nigerian digital bank (customers, accounts, deposits, withdrawals, transfers and transaction logs).  
 **Operations covered:** transfer funds, reverse failed transactions, audit account balances.  
 **Tools:** PostgreSQL 16 (relational), MongoDB 7 (document), Docker Compose.  
