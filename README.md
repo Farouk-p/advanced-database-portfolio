@@ -1,10 +1,10 @@
 # MIT 8103 Advanced Database Systems: Continuous Assessment Portfolio
 
-**Student:** Popoola Farouk
-**Student ID:** 301930841
-**Case study:** Farpoint, a made-up Nigerian digital bank (customers, accounts, deposits, withdrawals, transfers and transaction logs).
-**Operations covered:** transfer funds, reverse failed transactions, audit account balances.
-**Tools:** PostgreSQL 16 (relational), MongoDB 7 (document), Docker Compose.
+**Student:** Popoola Farouk  
+**Student ID:** 301930841  
+**Case study:** Farpoint, a made-up Nigerian digital bank (customers, accounts, deposits, withdrawals, transfers and transaction logs).  
+**Operations covered:** transfer funds, reverse failed transactions, audit account balances.  
+**Tools:** PostgreSQL 16 (relational), MongoDB 7 (document), Docker Compose.  
 
 ## Where to find things
 
